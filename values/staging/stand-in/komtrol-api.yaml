@@ -1,0 +1,46 @@
+# komtrol-api for the stand-in customer.
+#
+# A throwaway account used to rehearse the whole onboarding before a real
+# customer sees it. It sits under staging because it belongs to Lexplosion, not
+# to a customer, which keeps values/production/ meaning exactly one thing: a
+# real customer, one directory each.
+#
+# The directory says staging. The values below do not. Sizing, replica counts,
+# log level, and secret paths are all production shaped, deliberately, and the
+# file list is the same one a real customer gets. Rehearsing against a cheaper
+# cluster, or against a shorter list of files, proves nothing.
+
+chart:
+  name: komtrol-service        # renders charts/komtrol-service
+
+image:
+  digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+
+ingress:
+  host: komtrol.stand-in.lexplosion.com
+
+resources:
+  requests: { cpu: 500m, memory: 2Gi }
+  limits:   { memory: 2Gi }
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 20
+
+podDisruptionBudget:
+  minAvailable: 2
+
+allowFrom: []
+
+config:
+  SPRING_PROFILES_ACTIVE: production
+  LOG_LEVEL: INFO
+  WEAVIATE_URL: http://weaviate.data.svc.cluster.local
+
+secrets:
+  enabled: true
+  keys:
+    - { envVar: MONGO_URI,    path: komtrol/mongo/uri, property: uri }
+    - { envVar: WEAVIATE_KEY, path: komtrol/weaviate,  property: apikey }
+    - { envVar: DB_PASSWORD,  path: komtrol/api/db,    property: password }

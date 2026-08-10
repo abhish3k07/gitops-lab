@@ -1,0 +1,88 @@
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: default
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  template:
+    spec:
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: default
+      # Nodes are replaced on this cadence whether or not anything is wrong
+      # with them, which is how the fleet stays patched without a maintenance
+      # window.
+      expireAfter: {{ .Values.default.expireAfter }}
+      requirements:
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["on-demand"]
+        - key: kubernetes.io/arch
+          operator: In
+          values: {{ toJson .Values.default.architectures }}
+        - key: karpenter.k8s.aws/instance-category
+          operator: In
+          values: {{ toJson .Values.default.instanceCategories }}
+        # Generation 6 and above. Older families are more expensive per unit of
+        # work and in some regions are no longer available at all.
+        - key: karpenter.k8s.aws/instance-generation
+          operator: Gt
+          values: ["5"]
+  limits:
+    # A runaway HPA is capped here rather than by the account quota, and the
+    # difference is a stalled deployment instead of a surprise invoice.
+    cpu: "{{ .Values.default.cpuLimit }}"
+  disruption:
+    consolidationPolicy: WhenEmptyOrUnderutilized
+    consolidateAfter: {{ .Values.default.consolidateAfter }}
+    budgets:
+      - nodes: "{{ .Values.default.disruptionBudget }}"
+{{- if .Values.critical.enabled }}
+---
+# The second pool, for workloads that are expensive to move. Everything
+# stateful belongs here: MongoDB, Weaviate, and ONLYOFFICE.
+#
+# It is tainted, so nothing lands on it by accident. A workload opts in with
+# nodePool: critical in its own values file, which adds both the selector and
+# the matching toleration.
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: critical
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  template:
+    spec:
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: default
+      expireAfter: {{ .Values.critical.expireAfter }}
+      taints:
+        - key: workload
+          value: critical
+          effect: NoSchedule
+      requirements:
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["on-demand"]
+        - key: kubernetes.io/arch
+          operator: In
+          values: {{ toJson .Values.critical.architectures }}
+        - key: karpenter.k8s.aws/instance-category
+          operator: In
+          values: {{ toJson .Values.critical.instanceCategories }}
+        - key: karpenter.k8s.aws/instance-generation
+          operator: Gt
+          values: ["5"]
+  limits:
+    cpu: "{{ .Values.critical.cpuLimit }}"
+  disruption:
+    # WhenEmpty, not WhenEmptyOrUnderutilized. A node here is removed only once
+    # nothing is running on it.
+    consolidationPolicy: WhenEmpty
+    consolidateAfter: {{ .Values.critical.consolidateAfter }}
+{{- end }}

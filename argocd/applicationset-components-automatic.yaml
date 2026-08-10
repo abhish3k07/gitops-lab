@@ -1,0 +1,84 @@
+# Third-party components on automatic updates: staging, and customer waves 1
+# to 3. Same path rule and same generator shape as the applications, with one
+# difference that matters.
+#
+#   applications  source is  path: charts/komtrol-service   a chart we own
+#   components    source is  chart: + repoURL:              a chart a vendor owns
+#
+# The chart coordinates therefore have to travel with the values file. They sit
+# in a chart: block at the top of every tenant file, which the git generator
+# reads because it parses each matched file into template parameters.
+#
+# The version is per tenant on purpose. It is the component equivalent of the
+# image digest: a chart upgrade rolls through the waves like any other change,
+# staging first.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: komtrol-components-automatic
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - matrix:
+        generators:
+          - clusters:
+              selector:
+                matchExpressions:
+                  - { key: environment, operator: Exists }
+                  - { key: tenant, operator: Exists }
+                  - { key: wave, operator: NotIn, values: ["manual"] }
+          - git:
+              repoURL: https://github.com/lexplosion/komtrol-config.git
+              revision: main
+              files:
+                - path: 'components/{{ .metadata.labels.environment }}/{{ .metadata.labels.tenant }}/*.yaml'
+  template:
+    metadata:
+      name: '{{ .path.filename | trimSuffix ".yaml" }}-{{ .name }}'
+      labels:
+        komtrol.lexplosion.com/environment: '{{ .metadata.labels.environment }}'
+        komtrol.lexplosion.com/tenant: '{{ .metadata.labels.tenant }}'
+    spec:
+      project: komtrol
+      sources:
+        - repoURL: '{{ .chart.repoURL }}'
+          chart: '{{ .chart.name }}'
+          targetRevision: '{{ .chart.version }}'
+          helm:
+            releaseName: '{{ .path.filename | trimSuffix ".yaml" }}'
+            valueFiles:
+              - $values/components/common/{{ .path.filename }}
+              - $values/components/{{ .metadata.labels.environment }}/{{ .metadata.labels.tenant }}/{{ .path.filename }}
+        - repoURL: https://github.com/lexplosion/komtrol-config.git
+          targetRevision: main
+          ref: values
+      destination:
+        server: '{{ .server }}'
+        namespace: '{{ .chart.namespace }}'
+      syncPolicy:
+        automated:
+          # prune stays false for every component, and that is the whole point.
+          # Pruning a PerconaServerMongoDB or a PersistentVolumeClaim because
+          # somebody deleted a file is not a rollback, it is data loss. The
+          # gp3-encrypted StorageClass sets reclaimPolicy Retain for the same
+          # reason. Removing a component is a deliberate, manual act.
+          prune: false
+          selfHeal: true
+        syncOptions:
+          # The namespaces carry Pod Security labels and are created by
+          # Terragrunt. One created by ArgoCD would carry none, every pod would
+          # be refused, and the failure would point at the workload.
+          - CreateNamespace=false
+          # mongodb.yaml renders a PerconaServerMongoDB, whose CRD is installed
+          # by mongodb-operator.yaml. On a fresh cluster the dry run for the
+          # former fails until the latter has synced. This lets the sync be
+          # attempted anyway, and the retry below settles the pair without
+          # intervention.
+          - SkipDryRunOnMissingResource=true
+        retry:
+          limit: 5
+          backoff:
+            duration: 30s
+            factor: 2

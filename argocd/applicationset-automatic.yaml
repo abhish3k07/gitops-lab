@@ -1,0 +1,90 @@
+# Every cluster on automatic updates: staging, and customer waves 1 to 3.
+# The manual wave is excluded here and handled by the sibling file.
+#
+# The generator is a matrix of clusters and files, which is what makes the
+# directory layout the source of truth. Adding an application to a tenant is
+# adding a file. Nothing here is edited.
+#
+#   values/<environment>/<tenant>/<application>.yaml
+#             |              |            |
+#             |              |            +-- release name, one Application
+#             |              +-- cluster secret label: tenant
+#             +-- cluster secret label: environment
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: komtrol-automatic
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - matrix:
+        generators:
+          - clusters:
+              selector:
+                matchExpressions:
+                  # The Exists guards are not decoration. A NotIn expression
+                  # also matches a cluster that has no such label at all, so
+                  # without them ArgoCD's own in-cluster entry is selected and
+                  # the ApplicationSet tries to deploy Komtrol into the
+                  # control plane's argocd cluster.
+                  - { key: environment, operator: Exists }
+                  - { key: tenant, operator: Exists }
+                  - { key: wave, operator: NotIn, values: ["manual"] }
+          - git:
+              repoURL: https://github.com/lexplosion/komtrol-config.git
+              revision: main
+              # Interpolated from the cluster above, one iteration per cluster.
+              # The glob is what decides which applications that tenant runs.
+              #
+              # Note that this generator also parses each matched file and
+              # merges its top level keys into the template parameters. Our
+              # values files use image, resources, config and so on, none of
+              # which collide with name, server, or path. Do not introduce a
+              # top level values key called name.
+              files:
+                - path: 'values/{{ .metadata.labels.environment }}/{{ .metadata.labels.tenant }}/*.yaml'
+  template:
+    metadata:
+      name: '{{ .path.filename | trimSuffix ".yaml" }}-{{ .name }}'
+      labels:
+        komtrol.lexplosion.com/environment: '{{ .metadata.labels.environment }}'
+        komtrol.lexplosion.com/tenant: '{{ .metadata.labels.tenant }}'
+    spec:
+      project: komtrol
+      sources:
+        - repoURL: https://github.com/lexplosion/komtrol-config.git
+          targetRevision: main
+          # The tenant file names its chart, exactly as a component file does.
+          # Without this the ApplicationSet could only ever render one chart,
+          # and komtrol-platform would need an ApplicationSet of its own.
+          path: charts/{{ .chart.name }}
+          helm:
+            # The release name is the application name, and every object the
+            # chart creates takes it. See charts/komtrol-service/_helpers.tpl
+            releaseName: '{{ .path.filename | trimSuffix ".yaml" }}'
+            valueFiles:
+              # Layer 2 then layer 3. Order matters: Helm merges left to
+              # right, so the tenant file wins.
+              #
+              # The repository is listed twice on purpose. ArgoCD refuses a
+              # valueFiles path outside the chart directory, so the second
+              # source exists only to be referenced as $values.
+              - $values/values/common/{{ .path.filename }}
+              - $values/values/{{ .metadata.labels.environment }}/{{ .metadata.labels.tenant }}/{{ .path.filename }}
+        - repoURL: https://github.com/lexplosion/komtrol-config.git
+          targetRevision: main
+          ref: values
+      destination:
+        server: '{{ .server }}'
+        namespace: komtrol
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        retry:
+          limit: 3
+          backoff:
+            duration: 30s
+            factor: 2

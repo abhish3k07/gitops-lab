@@ -1,0 +1,25 @@
+apiVersion: v2
+name: komtrol-platform
+description: >-
+  Cluster-scoped objects ArgoCD owns: the Karpenter EC2NodeClass and NodePools,
+  and the priority classes everything else schedules against. One release per
+  cluster, before any workload.
+type: application
+version: 1.0.0
+
+# Terragrunt installs the Karpenter controller and its IAM role. These are
+# Kubernetes objects rather than AWS resources, so ArgoCD owns them, which is
+# why they are a chart here rather than a Terraform module.
+#
+# The namespaces and the StorageClass are deliberately NOT here. They have to
+# exist before ArgoCD is pointed at the cluster at all, so they are typed
+# resources in lexplosion-eks-terraform/modules/cluster-bootstrap, applied by
+# Terragrunt. See EKS Platform Build Runbook, Section 5, and Application
+# Deployment Runbook, Section 10.1.
+
+maintainers:
+  - name: Saints & Masters, platform team
+
+annotations:
+  komtrol.lexplosion.com/runbook: >-
+    EKS Platform Build Runbook, Section 5

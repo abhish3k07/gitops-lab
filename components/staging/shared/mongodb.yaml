@@ -1,0 +1,46 @@
+# MongoDB, shared staging. Synthetic data only, never a customer's.
+#
+# One member rather than three. This is the one place where a single member is
+# acceptable, because losing staging costs a rebuild rather than an outage.
+# Note that it also means staging cannot exercise a failover, which is part of
+# why the stand-in tenant exists.
+
+chart:
+  repoURL: https://percona.github.io/percona-helm-charts
+  name: psmdb-db
+  version: "<pinned, see runbook 11.4>"
+  namespace: data
+
+crVersion: "<match the operator version>"
+image: percona/percona-server-mongodb:<pinned tag>
+
+replsets:
+  rs0:
+    size: 1
+
+# Shared staging has no critical pool. See the note in weaviate.yaml.
+    nodeSelector:
+      karpenter.sh/nodepool: default
+    tolerations: []
+    resources:
+      requests: { cpu: 500m, memory: 2Gi }
+      limits:   { memory: 4Gi }
+    volumeSpec:
+      persistentVolumeClaim:
+        resources:
+          requests: { storage: 20Gi }
+
+backup:
+  enabled: true
+  image: percona/percona-backup-mongodb:<pinned tag>
+  storages:
+    s3-data-plane:
+      s3:
+        bucket: komtrol-staging-shared-mongo-backup
+  pitr:
+    enabled: false          # no point on a single member
+  tasks:
+    - name: daily
+      schedule: "0 18 * * *"
+      storageName: s3-data-plane
+      keep: 7               # shorter than production, deliberately

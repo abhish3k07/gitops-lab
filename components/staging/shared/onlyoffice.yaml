@@ -1,0 +1,55 @@
+# ONLYOFFICE Docs, shared staging.
+#
+# The runbook is clear that ONLYOFFICE runs in the customer data plane and
+# never in the control plane, because it opens, converts, and caches customer
+# documents. This instance is the exception that proves the rule: it is fed
+# synthetic documents only, so that the chart, the JWT wiring, and the sticky
+# WebSocket path are exercised before any data plane sees them.
+#
+# Never point it at a customer's storage. If a real customer document is needed
+# to reproduce something, reproduce it in that customer's own data plane.
+
+chart:
+  repoURL: https://download.onlyoffice.com/charts/stable
+  name: docs
+  version: "<pinned, see runbook 11.4>"
+  namespace: onlyoffice
+
+image:
+  tag: <pinned tag>
+
+connections:
+  dbType: postgres
+  dbHost: <staging rds endpoint>
+  dbName: onlyoffice
+  dbUser: onlyoffice
+  dbExistingSecret: onlyoffice-db
+  redisHost: <staging elasticache endpoint>
+  amqpHost: <staging amazon mq endpoint>
+  amqpExistingSecret: onlyoffice-amqp
+
+docservice:
+  replicas: 1
+  resources:
+    requests: { cpu: 250m, memory: 1Gi }
+    limits:   { memory: 2Gi }
+
+# Conversion is CPU bound, and this is where the cost sits. One replica in
+# staging is enough to prove the path works.
+converter:
+  replicas: 1
+  resources:
+    requests: { cpu: 1, memory: 2Gi }
+    limits:   { memory: 4Gi }
+
+ingress:
+  host: docs-staging.lexplosion.com
+
+# Shared staging has no critical pool, so this runs on the default pool with no
+# toleration. It is the one tenant where that is true, and it is why the check
+# in scripts/validate.py cross-references the pool against every component that
+# selects it: pinning a pod to a pool that does not exist leaves it Pending
+# forever, and the cause is two files away from the symptom.
+nodeSelector:
+  karpenter.sh/nodepool: default
+tolerations: []

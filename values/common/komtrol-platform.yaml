@@ -1,0 +1,22 @@
+# Cluster objects ArgoCD owns, everywhere. Layer 2.
+#
+# Almost nothing is here, and that is correct: every value this chart needs
+# identifies a particular cluster, so it comes from the tenant file. What is
+# here are the choices that should be the same in every cluster, because a
+# staging node that behaves differently from a production node is a staging
+# cluster that proves less.
+
+chart:
+  name: komtrol-platform       # renders charts/komtrol-platform
+
+nodeClass:
+  amiFamily: Bottlerocket
+  # Pinned, never an @latest alias. Bump it deliberately and let it roll
+  # through the waves like any other change.
+  amiSelectorAlias: bottlerocket@v1.30.0
+  encrypted: true
+
+priorityClasses:
+  platformCritical: 1000000
+  application: 100000
+  batch: 1000

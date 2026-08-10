@@ -1,0 +1,48 @@
+# Layer 1, chart defaults. Every value that identifies a particular cluster is
+# empty here and required from the tenant file, because getting one of them
+# wrong points Karpenter at another cluster's subnets.
+
+# Discovery tags written by Terragrunt onto the subnets, security groups, and
+# the node IAM role. The cluster name is the tag value.
+clusterName: ""                # required
+
+nodeClass:
+  role: ""                     # required, the Karpenter node IAM role name
+  amiFamily: Bottlerocket
+  # Pin the AMI. An alias of @latest means a node launched tomorrow can differ
+  # from one launched today, which is the hardest class of drift to diagnose.
+  amiSelectorAlias: ""         # required, for example bottlerocket@v1.30.0
+  rootVolumeGiB: 4
+  dataVolumeGiB: 100
+  encrypted: true
+
+default:
+  instanceCategories: ["c", "m", "r"]
+  # Both architectures. Karpenter picks whichever is cheaper for the pods it is
+  # scheduling, and arm64 is 15 to 20 percent cheaper when the image supports
+  # it. A service that cannot run on arm64 pins itself with architecture in its
+  # own values file rather than narrowing this pool for everyone.
+  architectures: ["arm64", "amd64"]
+  cpuLimit: "100"
+  expireAfter: 720h            # 30 days, so nodes are replaced and patched
+  consolidateAfter: 60s
+  disruptionBudget: "10%"
+
+critical:
+  # Off in shared staging, on everywhere that runs a datastore.
+  enabled: true
+  instanceCategories: ["r"]    # memory heavy: MongoDB, Weaviate
+  architectures: ["amd64"]     # until arm64 is confirmed for every datastore
+  cpuLimit: "64"
+  expireAfter: 720h
+  # WhenEmpty, not WhenEmptyOrUnderutilized. A node here is removed only once
+  # nothing is running on it. Stateful pods additionally carry
+  # karpenter.sh/do-not-disrupt, which stops consolidation moving them at all.
+  consolidateAfter: 600s
+
+priorityClasses:
+  # Datastores and the ingress path outrank batch work when a cluster is full.
+  # Without these, the scheduler evicts by chance rather than by importance.
+  platformCritical: 1000000
+  application: 100000
+  batch: 1000

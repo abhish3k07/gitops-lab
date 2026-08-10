@@ -1,0 +1,50 @@
+# komtrol-api for Customer A.
+#
+# Copy the nearest existing customer directory, then change every value rather
+# than assuming. Sizing is based on a comparable customer's real usage, not on
+# the chart defaults.
+
+chart:
+  name: komtrol-service        # renders charts/komtrol-service
+
+image:
+  digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+
+ingress:
+  host: komtrol.customer-a.lexplosion.com
+
+resources:
+  requests: { cpu: 1, memory: 4Gi }
+  limits:   { memory: 4Gi }        # 4 GB per vCPU puts this on the m family
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 30
+
+podDisruptionBudget:
+  minAvailable: 2
+
+# This service holds no volume and restarts cheaply, so the default pool is
+# right. Set critical only for the reasons in runbook 6.8.
+nodePool: default
+
+# This customer's edge routes on the Host header, so the probes need one.
+# Never put a credential here: values are literals and end up in this
+# repository. Set per tenant, not in common, because it is this customer's
+# routing that requires it.
+probes:
+  headers:
+    - { name: Host,           value: komtrol-api.internal }
+    - { name: X-Probe-Source, value: kubelet }
+
+config:
+  SPRING_PROFILES_ACTIVE: production
+  LOG_LEVEL: INFO
+  WEAVIATE_URL: http://weaviate.data.svc.cluster.local
+
+secrets:
+  enabled: true
+  keys:
+    - { envVar: MONGO_URI,    path: komtrol/mongo/uri, property: uri }
+    - { envVar: WEAVIATE_KEY, path: komtrol/weaviate,  property: apikey }

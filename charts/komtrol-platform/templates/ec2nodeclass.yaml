@@ -1,0 +1,50 @@
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: default
+  annotations:
+    # Ahead of everything. A NodePool referencing a NodeClass that does not
+    # exist yet is accepted and then quietly launches nothing.
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  amiFamily: {{ .Values.nodeClass.amiFamily }}
+  amiSelectorTerms:
+    - alias: {{ required "nodeClass.amiSelectorAlias is required. Pin the AMI, never track latest" .Values.nodeClass.amiSelectorAlias }}
+  role: {{ required "nodeClass.role is required. Terragrunt outputs the Karpenter node role name" .Values.nodeClass.role }}
+
+  # Discovery by tag, not by id. Terragrunt writes these tags, so a subnet
+  # added later is picked up without a change here. Getting the cluster name
+  # wrong points this cluster's Karpenter at another cluster's subnets, which
+  # is why it is required rather than defaulted.
+  subnetSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: {{ required "clusterName is required" .Values.clusterName }}
+  securityGroupSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: {{ .Values.clusterName }}
+
+  blockDeviceMappings:
+    # Bottlerocket keeps the OS on /dev/xvda and everything the containers
+    # write on /dev/xvdb. Only the second needs sizing.
+    - deviceName: /dev/xvda
+      ebs:
+        volumeType: gp3
+        volumeSize: {{ .Values.nodeClass.rootVolumeGiB }}Gi
+        encrypted: {{ .Values.nodeClass.encrypted }}
+        deleteOnTermination: true
+    - deviceName: /dev/xvdb
+      ebs:
+        volumeType: gp3
+        volumeSize: {{ .Values.nodeClass.dataVolumeGiB }}Gi
+        encrypted: {{ .Values.nodeClass.encrypted }}
+        deleteOnTermination: true
+
+  metadataOptions:
+    # IMDSv2 only, and a hop limit of 1 so a container cannot reach the
+    # instance metadata service and borrow the node role.
+    httpEndpoint: enabled
+    httpTokens: required
+    httpPutResponseHopLimit: 1
+
+  tags:
+    komtrol.lexplosion.com/cluster: {{ .Values.clusterName }}

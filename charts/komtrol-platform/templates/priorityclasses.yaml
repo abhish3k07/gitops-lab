@@ -1,0 +1,16 @@
+{{- range $name, $value := .Values.priorityClasses }}
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: {{ $name | kebabcase }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+value: {{ $value }}
+# Never the cluster default. A default priority class silently applies to every
+# pod that omits one, including pods in namespaces this platform does not own.
+globalDefault: false
+description: >-
+  Set by komtrol-platform. When the cluster is full, the scheduler evicts in
+  ascending order of this value.
+{{- end }}

@@ -1,0 +1,25 @@
+apiVersion: v2
+name: komtrol-service
+description: >-
+  The single chart every Komtrol service is deployed from, Java and Python
+  alike. What differs between services, environments, and customers is the
+  values file, never the templates.
+type: application
+
+# The chart's own version. Bump it when the templates change.
+version: 1.0.0
+
+# There is no appVersion on purpose. The running version is the image digest
+# in the values file, set by CI, and duplicating it here would create a second
+# source of truth that goes stale.
+
+# The chart is deliberately not named after any one service. The release name
+# is the application name, so komtrol-api and komtrol-indexer render from this
+# same chart under their own names and never collide.
+
+maintainers:
+  - name: Saints & Masters, platform team
+
+annotations:
+  komtrol.lexplosion.com/runbook: >-
+    Application Deployment Runbook, Section 6

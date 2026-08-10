@@ -1,0 +1,55 @@
+# ONLYOFFICE Docs, layer 2. The in-browser document editing Komtrol embeds.
+#
+# Third party software, so almost nothing in Sections 4 and 5 applies. There is
+# no Dockerfile, no build, and no pipeline producing a digest. An upstream chart
+# and an upstream image are pinned, and the values below are owned here.
+#
+# Representative rather than authoritative. Reconcile every key against
+#   helm show values onlyoffice/docs --version <the version you pin>
+#
+# See Application Deployment Runbook, Section 11.
+
+chart:
+  repoURL: https://download.onlyoffice.com/charts/stable
+  name: docs
+  namespace: onlyoffice
+
+# Signed requests between Komtrol and the document server. Without it, anything
+# that can reach the service can open any document it knows the URL of.
+jwt:
+  enabled: true
+  existingSecret: onlyoffice-jwt
+
+# Replicas share a cache directory, so the claim has to be ReadWriteMany and is
+# EFS backed. This is the requirement that catches people: two replicas on a
+# ReadWriteOnce volume will not schedule onto different nodes, and the
+# deployment appears to hang with a pod stuck in Pending.
+persistence:
+  existingClaim: onlyoffice-data
+
+# Pinned to amd64 until arm64 is confirmed for the tag in the tenant file:
+#   docker manifest inspect onlyoffice/documentserver:<tag> | grep -A2 architecture
+#
+# On the critical pool because it holds a volume, takes minutes to start, and
+# loses in-progress editing sessions when it is moved.
+nodeSelector:
+  kubernetes.io/arch: amd64
+  karpenter.sh/nodepool: critical
+tolerations:
+  - { key: workload, value: critical, effect: NoSchedule }
+
+ingress:
+  enabled: true
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/group.name: komtrol
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/healthcheck-path: /healthcheck
+    # Editing is a long lived WebSocket session carrying large uploads. The
+    # 60 second default cuts connections mid-edit.
+    alb.ingress.kubernetes.io/load-balancer-attributes: >-
+      idle_timeout.timeout_seconds=300
+    # Keep a session on one replica.
+    alb.ingress.kubernetes.io/target-group-attributes: >-
+      stickiness.enabled=true,stickiness.type=lb_cookie

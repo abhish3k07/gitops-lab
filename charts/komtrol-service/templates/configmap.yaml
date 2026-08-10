@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "komtrol-service.fullname" . }}-config
+  labels: {{- include "komtrol-service.labels" . | nindent 4 }}
+data:
+  {{- range $k, $v := .Values.config }}
+  # quote is not optional. YAML reads true, no, on and anything resembling a
+  # number as a non-string, and a ConfigMap requires string values.
+  {{ $k }}: {{ $v | quote }}
+  {{- end }}

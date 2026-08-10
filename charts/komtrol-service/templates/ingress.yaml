@@ -1,0 +1,35 @@
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "komtrol-service.fullname" . }}
+  labels: {{- include "komtrol-service.labels" . | nindent 4 }}
+  annotations:
+    # Keep group.name the same across services so they share one ALB. Each
+    # additional load balancer costs roughly USD 16 a month before traffic,
+    # and per-service ALBs are the commonest avoidable cost on the platform.
+    alb.ingress.kubernetes.io/group.name: {{ .Values.ingress.groupName }}
+    alb.ingress.kubernetes.io/scheme: {{ .Values.ingress.scheme }}
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/healthcheck-path: {{ .Values.ingress.healthcheckPath }}
+    # Must stay below terminationGracePeriodSeconds, or the load balancer is
+    # still holding connections open when the process is killed.
+    alb.ingress.kubernetes.io/deregistration-delay.timeout_seconds: {{ .Values.ingress.deregistrationDelaySeconds | quote }}
+spec:
+  ingressClassName: alb
+  rules:
+    # required fails the render with a readable message when a values file
+    # forgets the hostname. Without it the Ingress is created with an empty
+    # host, which silently matches every request reaching that load balancer
+    # and can route another customer's traffic to this service.
+    - host: {{ required "ingress.host is required for every environment" .Values.ingress.host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "komtrol-service.fullname" . }}
+                port:
+                  number: {{ .Values.service.port }}
+{{- end }}

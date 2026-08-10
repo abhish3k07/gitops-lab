@@ -1,0 +1,62 @@
+# Third-party components for the manual wave.
+#
+# Same relationship to applicationset-components-automatic as
+# applicationset-manual has to applicationset-automatic: identical chart,
+# identical values, identical path rule, and no automated block at all.
+#
+# This one matters more than its application equivalent. An unattended MongoDB
+# or Weaviate upgrade inside a customer's window is the change most likely to
+# need a restore, so a customer whose contract rules out unattended changes has
+# to have their datastores on the same footing as their services.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: komtrol-components-manual
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - matrix:
+        generators:
+          - clusters:
+              selector:
+                matchLabels:
+                  environment: production
+                  wave: manual
+          - git:
+              repoURL: https://github.com/lexplosion/komtrol-config.git
+              revision: main
+              files:
+                - path: 'components/{{ .metadata.labels.environment }}/{{ .metadata.labels.tenant }}/*.yaml'
+  template:
+    metadata:
+      name: '{{ .path.filename | trimSuffix ".yaml" }}-{{ .name }}'
+      labels:
+        komtrol.lexplosion.com/environment: '{{ .metadata.labels.environment }}'
+        komtrol.lexplosion.com/tenant: '{{ .metadata.labels.tenant }}'
+      annotations:
+        komtrol.lexplosion.com/release-window: '{{ .metadata.labels.window }}'
+    spec:
+      project: komtrol
+      sources:
+        - repoURL: '{{ .chart.repoURL }}'
+          chart: '{{ .chart.name }}'
+          targetRevision: '{{ .chart.version }}'
+          helm:
+            releaseName: '{{ .path.filename | trimSuffix ".yaml" }}'
+            valueFiles:
+              - $values/components/common/{{ .path.filename }}
+              - $values/components/{{ .metadata.labels.environment }}/{{ .metadata.labels.tenant }}/{{ .path.filename }}
+        - repoURL: https://github.com/lexplosion/komtrol-config.git
+          targetRevision: main
+          ref: values
+      destination:
+        server: '{{ .server }}'
+        namespace: '{{ .chart.namespace }}'
+      syncPolicy:
+        syncOptions:
+          - CreateNamespace=false
+          - SkipDryRunOnMissingResource=true
+        # No automated block, so no selfHeal either. Run argocd app diff before
+        # every hand sync, and take a backup before syncing a datastore.

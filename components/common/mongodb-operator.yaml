@@ -1,0 +1,22 @@
+# Percona Server for MongoDB operator, layer 2.
+#
+# One per cluster, in the data namespace. It installs the CRDs that the
+# mongodb.yaml release depends on, which is why that release fails on a fresh
+# cluster until this one has synced. ArgoCD retries, and the pair settles
+# without intervention. See the note in applicationset-components-automatic.
+
+chart:
+  repoURL: https://percona.github.io/percona-helm-charts
+  name: psmdb-operator
+  namespace: data
+
+# The operator watches only its own namespace. A cluster-wide watch would let a
+# CR created anywhere in the cluster provision a database, which is more
+# authority than this needs.
+watchNamespace: data
+
+replicaCount: 1
+
+resources:
+  requests: { cpu: 100m, memory: 256Mi }
+  limits:   { memory: 256Mi }

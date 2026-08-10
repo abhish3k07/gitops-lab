@@ -1,0 +1,39 @@
+# MongoDB for the stand-in tenant.
+#
+# Three members, point in time recovery on, thirty day retention: the same
+# shape a customer gets. The stand-in exists to rehearse a real onboarding, and
+# a single member database would leave failover, quorum, and restore untested,
+# which are the three things that go wrong first.
+
+chart:
+  repoURL: https://percona.github.io/percona-helm-charts
+  name: psmdb-db
+  version: "<pinned, see runbook 11.4>"
+  namespace: data
+
+crVersion: "<match the operator version>"
+image: percona/percona-server-mongodb:<pinned tag>
+
+replsets:
+  rs0:
+    size: 3
+    # WiredTiger sizes its cache from the container limit and the page cache
+    # does the rest, so this is not a heap. Eight gigabytes per vCPU puts it on
+    # the r family, and nothing that competes for page cache shares the node.
+    resources:
+      requests: { cpu: 1, memory: 4Gi }
+      limits:   { memory: 8Gi }
+    volumeSpec:
+      persistentVolumeClaim:
+        resources:
+          requests: { storage: 100Gi }
+
+backup:
+  enabled: true
+  image: percona/percona-backup-mongodb:<pinned tag>
+  storages:
+    s3-data-plane:
+      s3:
+        bucket: komtrol-stand-in-mongo-backup
+  pitr:
+    enabled: true

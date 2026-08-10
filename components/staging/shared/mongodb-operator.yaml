@@ -1,0 +1,6 @@
+# Percona operator, shared staging.
+chart:
+  repoURL: https://percona.github.io/percona-helm-charts
+  name: psmdb-operator
+  version: "<pinned, see runbook 11.4>"
+  namespace: data

@@ -1,0 +1,102 @@
+# Chart defaults, and the only file in the repository that is not tied to a
+# particular service. Deliberately conservative, and deliberately incomplete:
+# image.repository, image.digest, and ingress.host have no sensible default and
+# the render fails without them.
+#
+# Values are layered. Helm merges them left to right, so the later file wins:
+#
+#   1. this file                                  chart defaults
+#   2. values/common/<application>.yaml           facts about the service
+#   3. values/<environment>/<tenant>/<app>.yaml   facts about this deployment
+#
+# Almost every change you make day to day belongs in layer 3.
+
+nameOverride: ""
+fullnameOverride: ""
+
+image:
+  repository: ""               # layer 2. Full ECR path, no tag
+  digest: ""                   # layer 3, written by CI. Never a tag
+  pullPolicy: IfNotPresent
+
+# Ignored when autoscaling.enabled is true, and omitted from the Deployment
+# entirely so it cannot fight the HPA.
+replicaCount: 3
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 2Gi
+  limits:
+    memory: 2Gi                # equal to the request, see runbook 6.4
+    # No CPU limit. A cgroup quota throttles the JVM at GC boundaries and
+    # presents as a slow database. Add one only if you have measured a reason.
+
+podDisruptionBudget:
+  minAvailable: 2              # must stay at least one below the replica floor
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 30
+  targetCPUUtilizationPercentage: 70
+
+service:
+  port: 80
+  targetPort: 8080
+
+ingress:
+  enabled: true
+  host: ""                     # required per tenant
+  groupName: komtrol           # share one ALB across services
+  scheme: internet-facing
+  healthcheckPath: /healthz/ready
+  deregistrationDelaySeconds: 30   # must be below terminationGracePeriodSeconds
+
+probes:
+  livePath: /healthz/live
+  readyPath: /healthz/ready
+  headers: []                  # opt in per service, see runbook 6.5
+  startupFailureThreshold: 30  # 30 x 5s = 150s, sized for a JVM
+  readinessPeriodSeconds: 10
+  livenessPeriodSeconds: 10
+
+terminationGracePeriodSeconds: 60
+preStopSleepSeconds: 5
+
+# default, or critical for anything expensive to move. See runbook 6.8
+nodePool: default
+
+# Pin to one architecture only while a native dependency is unverified.
+# Leave empty to let Karpenter choose, which is what you want.
+architecture: ""               # "" | amd64 | arm64
+
+serviceAccount:
+  # Created by the chart. The platform team attaches the Pod Identity
+  # association to it, so the name has to be stable.
+  annotations: {}
+
+# Becomes the ConfigMap, injected wholesale as environment variables.
+config: {}
+
+secrets:
+  enabled: true
+  storeName: aws-secrets-manager   # SecretStore made by the platform team
+  refreshInterval: 1h
+  keys: []
+  # - { envVar: DB_PASSWORD, path: komtrol/api/db, property: password }
+
+# Pod labels allowed to reach this service, in addition to the load balancer.
+allowFrom: []
+
+serviceMonitor:
+  enabled: true
+  path: /actuator/prometheus     # /metrics for the Python services
+  interval: 30s
+
+migration:
+  enabled: false
+  # Runs as an ArgoCD PreSync hook, before the Deployment. See runbook 9.3
+  command: ["java", "-jar", "/app/app.jar", "migrate"]
+
+podAnnotations: {}

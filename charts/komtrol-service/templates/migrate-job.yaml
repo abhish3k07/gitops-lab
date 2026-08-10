@@ -1,0 +1,54 @@
+{{- if .Values.migration.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "komtrol-service.fullname" . }}-migrate
+  labels: {{- include "komtrol-service.labels" . | nindent 4 }}
+  annotations:
+    # The ArgoCD PreSync hook, not the Helm pre-upgrade hook. ArgoCD renders
+    # with helm template and never runs a Helm release lifecycle, so Helm's
+    # own hook annotations have nothing to trigger them.
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 1
+  template:
+    metadata:
+      labels: {{- include "komtrol-service.selectorLabels" . | nindent 8 }}
+    spec:
+      restartPolicy: Never
+      serviceAccountName: {{ include "komtrol-service.fullname" . }}
+      # The same security context as the Deployment. A Job that omits it is
+      # refused admission by the restricted policy, and the sync fails before
+      # the Deployment is even attempted.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: migrate
+          # The same digest as the Deployment, so the schema change and the
+          # code that depends on it always come from one build.
+          image: {{ include "komtrol-service.image" . | quote }}
+          command: {{- toYaml .Values.migration.command | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          envFrom:
+            - configMapRef:
+                name: {{ include "komtrol-service.fullname" . }}-config
+            {{- if .Values.secrets.enabled }}
+            - secretRef:
+                name: {{ include "komtrol-service.fullname" . }}-secrets
+            {{- end }}
+      volumes:
+        - name: tmp
+          emptyDir: {}
+{{- end }}

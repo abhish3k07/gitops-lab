@@ -1,0 +1,28 @@
+# Weaviate for Customer A.
+#
+# Sized on memory first, because the index is held in memory and this workload
+# is memory bound rather than CPU bound. The figure below comes from a
+# comparable customer's measured index size with headroom, not from a default.
+
+chart:
+  repoURL: https://weaviate.github.io/weaviate-helm
+  name: weaviate
+  version: "<pinned, see runbook 11.4>"
+  namespace: data
+
+replicas: 3
+
+image:
+  tag: <pinned version>
+
+storage:
+  size: 200Gi
+
+resources:
+  requests: { cpu: 2, memory: 16Gi }
+  limits:   { memory: 16Gi }
+
+backups:
+  s3:
+    envconfig:
+      BACKUP_S3_BUCKET: komtrol-customer-a-weaviate-backup

@@ -1,0 +1,40 @@
+# ONLYOFFICE Docs for the stand-in tenant.
+#
+# Two replicas of each, so the EFS shared cache and the sticky session path are
+# both exercised. A single replica would hide the two failures that only appear
+# above one: a ReadWriteOnce claim that will not schedule, and an editing
+# session that breaks when it lands on the other pod.
+
+chart:
+  repoURL: https://download.onlyoffice.com/charts/stable
+  name: docs
+  version: "<pinned, see runbook 11.4>"
+  namespace: onlyoffice
+
+image:
+  tag: <pinned tag>
+
+connections:
+  dbType: postgres
+  dbHost: <stand-in rds endpoint>
+  dbName: onlyoffice
+  dbUser: onlyoffice
+  dbExistingSecret: onlyoffice-db
+  redisHost: <stand-in elasticache endpoint>
+  amqpHost: <stand-in amazon mq endpoint>
+  amqpExistingSecret: onlyoffice-amqp
+
+docservice:
+  replicas: 2
+  resources:
+    requests: { cpu: 500m, memory: 2Gi }
+    limits:   { memory: 4Gi }
+
+converter:
+  replicas: 2
+  resources:
+    requests: { cpu: 2, memory: 4Gi }
+    limits:   { memory: 8Gi }
+
+ingress:
+  host: docs-stand-in.lexplosion.com

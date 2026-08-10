@@ -1,0 +1,19 @@
+# Cluster objects for the stand-in tenant. Production shaped, including the
+# critical pool, because the taint and toleration path has to be rehearsed
+# somewhere before a customer sees it.
+
+chart:
+  name: komtrol-platform
+
+clusterName: komtrol-stand-in
+
+nodeClass:
+  role: KarpenterNodeRole-komtrol-stand-in
+  dataVolumeGiB: 100
+
+default:
+  cpuLimit: "64"
+
+critical:
+  enabled: true
+  cpuLimit: "32"

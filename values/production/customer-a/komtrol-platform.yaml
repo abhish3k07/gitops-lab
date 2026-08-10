@@ -1,0 +1,17 @@
+# Cluster objects for Customer A's data plane.
+
+chart:
+  name: komtrol-platform
+
+clusterName: komtrol-customer-a
+
+nodeClass:
+  role: KarpenterNodeRole-komtrol-customer-a
+  dataVolumeGiB: 100
+
+default:
+  cpuLimit: "100"
+
+critical:
+  enabled: true
+  cpuLimit: "64"

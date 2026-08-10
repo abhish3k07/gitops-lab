@@ -1,0 +1,12 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "komtrol-service.fullname" . }}
+  labels: {{- include "komtrol-service.labels" . | nindent 4 }}
+spec:
+  # If minAvailable equals the replica count, node consolidation and every
+  # cluster upgrade stall silently, waiting for an eviction that can never be
+  # allowed. Keep it at least one below.
+  minAvailable: {{ .Values.podDisruptionBudget.minAvailable }}
+  selector:
+    matchLabels: {{- include "komtrol-service.selectorLabels" . | nindent 6 }}

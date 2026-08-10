@@ -1,0 +1,11 @@
+{{ include "komtrol-service.fullname" . }} rendered for {{ .Release.Namespace }}.
+
+  image      {{ include "komtrol-service.image" . }}
+  host       {{ .Values.ingress.host | default "ingress disabled" }}
+  node pool  {{ .Values.nodePool }}
+  replicas   {{ if .Values.autoscaling.enabled }}HPA {{ .Values.autoscaling.minReplicas }} to {{ .Values.autoscaling.maxReplicas }}{{ else }}fixed {{ .Values.replicaCount }}{{ end }}
+  migration  {{ if .Values.migration.enabled }}runs as a PreSync hook{{ else }}disabled{{ end }}
+
+You are seeing this from helm template. Nothing was installed: ArgoCD applies
+this output, and running helm install against a cluster by hand would be
+reverted by selfHeal at the next sync.

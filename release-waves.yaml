@@ -1,0 +1,14 @@
+# Which tenants are in which wave. Read by the promotion script in runbook
+# 12.2. The wave label on each cluster secret has to agree with this file, and
+# scripts/validate.py checks that it does.
+#
+# Waves are an ordering, not a grouping. A release moves down the list.
+
+wave0:                 # Lexplosion's shared staging, always first
+  - shared
+wave1:                 # the stand-in rehearsal, last stop before a customer
+  - stand-in
+wave2: []              # customers who accept early updates
+wave3: []              # everyone else on automatic updates
+manual:                # released by hand by the support team, inside the
+  - customer-a         # customer's agreed window. See runbook 12.1

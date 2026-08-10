@@ -1,0 +1,38 @@
+# Weaviate, shared staging. Synthetic documents only.
+#
+# One replica, so no quorum and no raft behaviour to observe here. The stand-in
+# tenant is where three-member behaviour is rehearsed.
+
+chart:
+  repoURL: https://weaviate.github.io/weaviate-helm
+  name: weaviate
+  version: "<pinned, see runbook 11.4>"
+  namespace: data
+
+replicas: 1
+
+image:
+  tag: <pinned version>
+
+storage:
+  size: 20Gi
+
+# Request equals limit. An under-provisioned Weaviate does not run slowly, it
+# is OOM killed and then rebuilds the index on restart.
+resources:
+  requests: { cpu: 1, memory: 4Gi }
+  limits:   { memory: 4Gi }
+
+backups:
+  s3:
+    envconfig:
+      BACKUP_S3_BUCKET: komtrol-staging-shared-weaviate-backup
+
+# Shared staging has no critical pool, so this runs on the default pool with no
+# toleration. It is the one tenant where that is true, and it is why the check
+# in scripts/validate.py cross-references the pool against every component that
+# selects it: pinning a pod to a pool that does not exist leaves it Pending
+# forever, and the cause is two files away from the symptom.
+nodeSelector:
+  karpenter.sh/nodepool: default
+tolerations: []

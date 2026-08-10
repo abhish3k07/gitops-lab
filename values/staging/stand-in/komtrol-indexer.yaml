@@ -1,0 +1,32 @@
+# komtrol-indexer for the stand-in customer.
+#
+# Production shaped, like its sibling in this directory. See the note at the
+# top of komtrol-api.yaml.
+
+chart:
+  name: komtrol-service        # renders charts/komtrol-service
+
+image:
+  digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+
+resources:
+  requests: { cpu: 1, memory: 1Gi }   # 4 workers x ~200Mi plus headroom
+  limits:   { memory: 1Gi }
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 8
+
+podDisruptionBudget:
+  minAvailable: 1
+
+config:
+  WEB_CONCURRENCY: "4"                # in step with the 1 vCPU request
+  LOG_LEVEL: INFO
+  WEAVIATE_URL: http://weaviate.data.svc.cluster.local
+
+secrets:
+  enabled: true
+  keys:
+    - { envVar: WEAVIATE_KEY, path: komtrol/weaviate, property: apikey }

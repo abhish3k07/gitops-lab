@@ -1,0 +1,42 @@
+# komtrol-api, everywhere it runs. Java 17, Spring Boot.
+#
+# Layer 2. Only facts about the service itself belong here, meaning anything
+# that would be identical in staging and in every customer's cluster. Anything
+# that differs between deployments goes in the tenant file.
+#
+# No image digest here. No hostname. No sizing.
+
+chart:
+  name: komtrol-service        # renders charts/komtrol-service
+
+image:
+  repository: <control plane account>.dkr.ecr.ap-south-1.amazonaws.com/komtrol-api
+
+service:
+  port: 80
+  targetPort: 8080
+
+ingress:
+  enabled: true
+  groupName: komtrol
+  scheme: internet-facing
+  healthcheckPath: /healthz/ready
+  deregistrationDelaySeconds: 30
+
+probes:
+  livePath: /healthz/live
+  readyPath: /healthz/ready
+  # 30 x 5s = 150s. A cold JVM with Spring context refresh needs most of it.
+  startupFailureThreshold: 30
+
+terminationGracePeriodSeconds: 60
+preStopSleepSeconds: 5
+
+serviceMonitor:
+  enabled: true
+  path: /actuator/prometheus
+  interval: 30s
+
+migration:
+  enabled: true
+  command: ["java", "-jar", "/app/app.jar", "migrate"]

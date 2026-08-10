@@ -1,0 +1,71 @@
+# MongoDB, layer 2. Renders a PerconaServerMongoDB custom resource.
+#
+# Representative rather than authoritative. Reconcile every key against
+#   helm show values percona/psmdb-db --version <the version you pin>
+# for the version in the tenant file. Key names move between major versions.
+#
+# See Application Deployment Runbook, Section 10.3.
+
+chart:
+  repoURL: https://percona.github.io/percona-helm-charts
+  name: psmdb-db
+  namespace: data
+
+# The credentials are created by an ExternalSecret from AWS Secrets Manager in
+# the data plane account. The operator reads this secret, it never generates
+# passwords of its own.
+secrets:
+  users: komtrol-mongo-users
+
+# replsets is a map keyed by replica set name, not a list, and that is load
+# bearing here. Helm replaces a list wholesale rather than merging it, so if
+# this were a list every setting below would be silently discarded the moment a
+# tenant file set a size. As a map, the two layers merge key by key.
+#
+# The map form is what recent psmdb-db charts expect. On an older chart that
+# still takes a list, every one of these settings has to be repeated in each
+# tenant file instead.
+replsets:
+  rs0:
+    # Spread members across availability zones. A replica set whose members
+    # share a zone survives a pod failure and not a zone failure, which is the
+    # failure that actually happens.
+    affinity:
+      antiAffinityTopologyKey: topology.kubernetes.io/zone
+
+    # The critical pool, and pinned there. MongoDB holds a volume, takes
+    # minutes to recover quorum, and moving a member is an outage rather than
+    # an inconvenience. See runbook 6.8.
+    nodeSelector:
+      karpenter.sh/nodepool: critical
+    tolerations:
+      - { key: workload, value: critical, effect: NoSchedule }
+    annotations:
+      karpenter.sh/do-not-disrupt: "true"
+
+    podDisruptionBudget:
+      maxUnavailable: 1
+
+    volumeSpec:
+      persistentVolumeClaim:
+        storageClassName: gp3-encrypted
+
+backup:
+  enabled: true
+  storages:
+    s3-data-plane:
+      type: s3
+      s3:
+        region: ap-south-1
+        # Empty on purpose. The backup agent uses a Pod Identity association
+        # instead. Static AWS keys in a Kubernetes secret are exactly the
+        # finding a customer security review looks for, and the bucket is in
+        # the customer's own account anyway.
+        credentialsSecret: ""
+  pitr:
+    enabled: true
+  tasks:
+    - name: daily
+      schedule: "0 18 * * *"      # 23:30 IST, outside working hours
+      storageName: s3-data-plane
+      keep: 30

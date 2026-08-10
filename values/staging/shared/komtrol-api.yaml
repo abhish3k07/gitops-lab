@@ -1,0 +1,43 @@
+# komtrol-api in Lexplosion's shared staging tenant.
+#
+# The tenant is named shared because this cluster is used by everyone at
+# Lexplosion, as against stand-in next door, which is one team rehearsing an
+# onboarding. Both are staging: both belong to Lexplosion.
+#
+# The digest line is written by CI on every merge to main. Do not edit it.
+
+chart:
+  name: komtrol-service        # renders charts/komtrol-service
+
+image:
+  digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+
+ingress:
+  host: komtrol-staging.lexplosion.com
+
+# Smaller than production on purpose. Staging exists to catch behaviour, not
+# to carry load.
+resources:
+  requests: { cpu: 250m, memory: 1Gi }
+  limits:   { memory: 1Gi }
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+
+podDisruptionBudget:
+  minAvailable: 1
+
+config:
+  SPRING_PROFILES_ACTIVE: staging
+  LOG_LEVEL: DEBUG
+  FEATURE_NEW_WORKFLOW: "true"
+  WEAVIATE_URL: http://weaviate.data.svc.cluster.local
+
+secrets:
+  enabled: true
+  keys:
+    - { envVar: DB_PASSWORD,  path: komtrol/staging/api/db,  property: password }
+    - { envVar: API_KEY,      path: komtrol/staging/api/ext, property: key }
+    - { envVar: WEAVIATE_KEY, path: komtrol/staging/weaviate, property: apikey }

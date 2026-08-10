@@ -1,0 +1,31 @@
+# komtrol-indexer in Lexplosion's shared staging tenant.
+
+chart:
+  name: komtrol-service        # renders charts/komtrol-service
+
+image:
+  digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+
+resources:
+  requests: { cpu: 500m, memory: 512Mi }   # 2 workers x ~200Mi plus headroom
+  limits:   { memory: 512Mi }
+
+autoscaling:
+  enabled: false                           # two fixed pods is enough here
+replicaCount: 2
+
+podDisruptionBudget:
+  minAvailable: 1
+
+config:
+  # Never left to autodetection: gunicorn would read the node's core count and
+  # start far too many workers for a 500m request. Keep it in step with the
+  # CPU request above, which is why it lives in the tenant file.
+  WEB_CONCURRENCY: "2"
+  LOG_LEVEL: DEBUG
+  WEAVIATE_URL: http://weaviate.data.svc.cluster.local
+
+secrets:
+  enabled: true
+  keys:
+    - { envVar: WEAVIATE_KEY, path: komtrol/staging/weaviate, property: apikey }

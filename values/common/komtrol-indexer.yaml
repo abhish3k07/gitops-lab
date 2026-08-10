@@ -1,0 +1,43 @@
+# komtrol-indexer, everywhere it runs. Python 3, gunicorn.
+#
+# Layer 2, and the reason the chart is not named after any one service. Nothing
+# in templates/ changes to run a Python service. This file is the whole of the
+# difference between the two runtimes.
+
+chart:
+  name: komtrol-service        # renders charts/komtrol-service
+
+image:
+  repository: <control plane account>.dkr.ecr.ap-south-1.amazonaws.com/komtrol-indexer
+
+service:
+  port: 80
+  targetPort: 8000
+
+# Internal only, called by komtrol-api. No hostname, so no Ingress and no
+# ingress.host requirement.
+ingress:
+  enabled: false
+
+probes:
+  livePath: /healthz/live
+  readyPath: /healthz/ready
+  headers: []                  # no Host routing, unlike komtrol-api
+  startupFailureThreshold: 12  # 60s is ample for a Python process
+
+# A worker finishes the document it is holding, then exits. Shorter than the
+# Java service because there is no connection pool to drain.
+terminationGracePeriodSeconds: 30
+preStopSleepSeconds: 5
+
+# Only komtrol-api may reach it.
+allowFrom:
+  - komtrol-api
+
+serviceMonitor:
+  enabled: true
+  path: /metrics               # not /actuator/prometheus
+  interval: 30s
+
+migration:
+  enabled: false               # no schema of its own

@@ -1,0 +1,135 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "komtrol-service.fullname" . }}
+  labels: {{- include "komtrol-service.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  # Omitted entirely when autoscaling is on. If the chart set both, every
+  # ArgoCD sync would reset the count and fight the HPA, which shows up as
+  # pods scaling down for no reason a few minutes after each deploy.
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels: {{- include "komtrol-service.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "komtrol-service.selectorLabels" . | nindent 8 }}
+      annotations:
+        # Helm does not roll pods when a ConfigMap changes, unlike Kustomize's
+        # name hashing. This hash puts the config into the pod spec, so a
+        # config change alters the spec and triggers a rollout. Remove it and
+        # configuration changes appear to be ignored.
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "komtrol-service.fullname" . }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+
+      # Every field below is required by the restricted Pod Security Standard.
+      # Omit any one of them and the pod is refused admission rather than
+      # failing later, which is the failure you want.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels: {{- include "komtrol-service.selectorLabels" . | nindent 14 }}
+
+      {{- if eq .Values.nodePool "critical" }}
+      nodeSelector:
+        karpenter.sh/nodepool: critical
+        {{- if .Values.architecture }}
+        kubernetes.io/arch: {{ .Values.architecture }}
+        {{- end }}
+      tolerations:
+        - key: workload
+          value: critical
+          effect: NoSchedule
+      {{- else if .Values.architecture }}
+      nodeSelector:
+        kubernetes.io/arch: {{ .Values.architecture }}
+      {{- end }}
+
+      containers:
+        - name: app
+          image: {{ include "komtrol-service.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.targetPort }}
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+
+          resources: {{- toYaml .Values.resources | nindent 12 }}
+
+          # The JVM writes hsperfdata here at startup and heap dumps here on
+          # failure. Without the volume, a read-only root filesystem makes the
+          # process fail immediately with an error that does not mention /tmp.
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+
+          envFrom:
+            - configMapRef:
+                name: {{ include "komtrol-service.fullname" . }}-config
+            {{- if .Values.secrets.enabled }}
+            - secretRef:
+                name: {{ include "komtrol-service.fullname" . }}-secrets
+            {{- end }}
+
+          # The startup probe is what stops the liveness probe killing a JVM
+          # before it is ready. It is the single most common omission in a
+          # first deployment.
+          startupProbe:
+            httpGet:
+              path: {{ .Values.probes.livePath }}
+              port: http
+              {{- include "komtrol-service.probeHeaders" . | nindent 14 }}
+            periodSeconds: 5
+            failureThreshold: {{ .Values.probes.startupFailureThreshold }}
+
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.probes.readyPath }}
+              port: http
+              {{- include "komtrol-service.probeHeaders" . | nindent 14 }}
+            periodSeconds: {{ .Values.probes.readinessPeriodSeconds }}
+            failureThreshold: 3
+
+          # Liveness must not touch the database. A database blip would
+          # otherwise restart every pod at once.
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.probes.livePath }}
+              port: http
+              {{- include "komtrol-service.probeHeaders" . | nindent 14 }}
+            periodSeconds: {{ .Values.probes.livenessPeriodSeconds }}
+            failureThreshold: 3
+
+          # Kubelet sends SIGTERM at the same moment endpoint removal starts
+          # propagating. This pause lets the load balancer stop sending new
+          # connections before the process starts refusing them, which is the
+          # difference between a clean deploy and a burst of 502s.
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sh", "-c", "sleep {{ .Values.preStopSleepSeconds }}"]
+
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 1Gi

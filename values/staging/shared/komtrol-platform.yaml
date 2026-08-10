@@ -1,0 +1,23 @@
+# Cluster objects for shared staging.
+
+chart:
+  name: komtrol-platform
+
+clusterName: komtrol-staging
+
+nodeClass:
+  role: KarpenterNodeRole-komtrol-staging
+  dataVolumeGiB: 50
+
+default:
+  cpuLimit: "40"               # a hard ceiling on what staging can cost
+  # Shorter than production. Staging is rebuilt often, so a stale node has
+  # less value here than fast turnover.
+  expireAfter: 168h            # 7 days
+
+critical:
+  # The only cluster where this is off. Shared staging runs a single MongoDB
+  # member and a single Weaviate replica, neither of which is worth a
+  # dedicated tainted pool. Note the consequence: staging cannot exercise the
+  # taint and toleration path, which is one more thing the stand-in covers.
+  enabled: false

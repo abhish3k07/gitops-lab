@@ -1,0 +1,24 @@
+# Weaviate for the stand-in tenant. Three members, as a customer gets.
+
+chart:
+  repoURL: https://weaviate.github.io/weaviate-helm
+  name: weaviate
+  version: "<pinned, see runbook 11.4>"
+  namespace: data
+
+replicas: 3                    # quorum
+
+image:
+  tag: <pinned version>
+
+storage:
+  size: 100Gi
+
+resources:
+  requests: { cpu: 2, memory: 8Gi }
+  limits:   { memory: 8Gi }
+
+backups:
+  s3:
+    envconfig:
+      BACKUP_S3_BUCKET: komtrol-stand-in-weaviate-backup

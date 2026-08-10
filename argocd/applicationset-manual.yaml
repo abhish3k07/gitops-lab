@@ -1,0 +1,60 @@
+# The manual wave: customers whose contract rules out unattended changes.
+# Identical chart, identical values, identical path rule, and no automated
+# block at all, so nothing syncs until the Lexplosion support team presses the
+# button.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: komtrol-manual
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - matrix:
+        generators:
+          - clusters:
+              selector:
+                matchLabels:
+                  environment: production
+                  wave: manual
+          - git:
+              repoURL: https://github.com/lexplosion/komtrol-config.git
+              revision: main
+              files:
+                - path: 'values/{{ .metadata.labels.environment }}/{{ .metadata.labels.tenant }}/*.yaml'
+  template:
+    metadata:
+      name: '{{ .path.filename | trimSuffix ".yaml" }}-{{ .name }}'
+      labels:
+        komtrol.lexplosion.com/environment: '{{ .metadata.labels.environment }}'
+        komtrol.lexplosion.com/tenant: '{{ .metadata.labels.tenant }}'
+      annotations:
+        # Read by the support team, not by ArgoCD. Every cluster in this wave
+        # must carry a window label or the render fails, which is intended.
+        komtrol.lexplosion.com/release-window: '{{ .metadata.labels.window }}'
+    spec:
+      project: komtrol
+      sources:
+        - repoURL: https://github.com/lexplosion/komtrol-config.git
+          targetRevision: main
+          # The tenant file names its chart, exactly as a component file does.
+          # Without this the ApplicationSet could only ever render one chart,
+          # and komtrol-platform would need an ApplicationSet of its own.
+          path: charts/{{ .chart.name }}
+          helm:
+            releaseName: '{{ .path.filename | trimSuffix ".yaml" }}'
+            valueFiles:
+              - $values/values/common/{{ .path.filename }}
+              - $values/values/{{ .metadata.labels.environment }}/{{ .metadata.labels.tenant }}/{{ .path.filename }}
+        - repoURL: https://github.com/lexplosion/komtrol-config.git
+          targetRevision: main
+          ref: values
+      destination:
+        server: '{{ .server }}'
+        namespace: komtrol
+      syncPolicy:
+        syncOptions:
+          - CreateNamespace=false
+        # No automated block. Note that this also means no selfHeal, so drift
+        # is not corrected. Run argocd app diff before every hand sync.

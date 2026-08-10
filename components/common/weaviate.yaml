@@ -1,0 +1,55 @@
+# Weaviate, layer 2. The vector index for search across customer documents.
+#
+# Representative rather than authoritative. Reconcile every key against
+#   helm show values weaviate/weaviate --version <the version you pin>
+#
+# See Application Deployment Runbook, Section 10.4.
+
+chart:
+  repoURL: https://weaviate.github.io/weaviate-helm
+  name: weaviate
+  namespace: data
+
+storage:
+  storageClassName: gp3-encrypted
+
+# Same pool and same reasoning as MongoDB. An index rebuild after an eviction
+# takes far longer than the disruption it was meant to avoid.
+nodeSelector:
+  karpenter.sh/nodepool: critical
+tolerations:
+  - { key: workload, value: critical, effect: NoSchedule }
+podAnnotations:
+  karpenter.sh/do-not-disrupt: "true"
+
+authentication:
+  anonymous_access:
+    enabled: false             # never true, in any environment
+  apikey:
+    enabled: true
+    allowed_keys_secret: weaviate-api-keys
+authorization:
+  admin_list:
+    enabled: true
+
+modules:
+  # The vectoriser is a data sovereignty decision, not a technical one.
+  # text2vec-openai, text2vec-cohere and similar modules send document text to
+  # a third party outside the customer's account, which contradicts everything
+  # the data plane exists to guarantee.
+  #
+  # text2vec-aws runs against Bedrock in the customer's own region. Confirm the
+  # choice in writing before the first customer document is indexed.
+  text2vec-aws:
+    enabled: true
+    region: ap-south-1
+  text2vec-openai:
+    enabled: false
+  text2vec-cohere:
+    enabled: false
+
+backups:
+  s3:
+    enabled: true
+    envconfig:
+      BACKUP_S3_ENDPOINT: s3.ap-south-1.amazonaws.com
