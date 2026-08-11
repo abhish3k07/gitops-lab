@@ -4,7 +4,7 @@
 
 # Discovery tags written by Terragrunt onto the subnets, security groups, and
 # the node IAM role. The cluster name is the tag value.
-clusterName: ""                # required
+clusterName: "kubeodin"                # required
 
 nodeClass:
   role: ""                     # required, the Karpenter node IAM role name

@@ -1,0 +1,73 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowPassingInstanceRole",
+      "Effect": "Allow",
+      "Resource": "arn:aws:iam::652197206148:role/KarpenterNodeRole-kubeodin",
+      "Action": "iam:PassRole",
+      "Condition": {
+        "StringEquals": {
+          "iam:PassedToService": [
+            "ec2.amazonaws.com",
+            "ec2.amazonaws.com.cn"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "AllowScopedInstanceProfileCreationActions",
+      "Effect": "Allow",
+      "Resource": "arn:aws:iam::652197206148:instance-profile/*",
+      "Action": "iam:CreateInstanceProfile",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestTag/kubernetes.io/cluster/kubeodin": "owned",
+          "aws:RequestTag/eks:eks-cluster-name": "kubeodin",
+          "aws:RequestTag/topology.kubernetes.io/region": "ap-south-1"
+        },
+        "StringLike": {
+          "aws:RequestTag/karpenter.k8s.aws/ec2nodeclass": "*"
+        }
+      }
+    },
+    {
+      "Sid": "AllowScopedInstanceProfileTagActions",
+      "Effect": "Allow",
+      "Resource": "arn:aws:iam::652197206148:instance-profile/*",
+      "Action": "iam:TagInstanceProfile",
+      "Condition": {
+        "StringEquals": {
+          "aws:ResourceTag/kubernetes.io/cluster/kubeodin": "owned",
+          "aws:ResourceTag/topology.kubernetes.io/region": "ap-south-1",
+          "aws:RequestTag/kubernetes.io/cluster/kubeodin": "owned",
+          "aws:RequestTag/eks:eks-cluster-name": "kubeodin",
+          "aws:RequestTag/topology.kubernetes.io/region": "ap-south-1"
+        },
+        "StringLike": {
+          "aws:ResourceTag/karpenter.k8s.aws/ec2nodeclass": "*",
+          "aws:RequestTag/karpenter.k8s.aws/ec2nodeclass": "*"
+        }
+      }
+    },
+    {
+      "Sid": "AllowScopedInstanceProfileActions",
+      "Effect": "Allow",
+      "Resource": "arn:aws:iam::652197206148:instance-profile/*",
+      "Action": [
+        "iam:AddRoleToInstanceProfile",
+        "iam:RemoveRoleFromInstanceProfile",
+        "iam:DeleteInstanceProfile"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "aws:ResourceTag/kubernetes.io/cluster/kubeodin": "owned",
+          "aws:ResourceTag/topology.kubernetes.io/region": "ap-south-1"
+        },
+        "StringLike": {
+          "aws:ResourceTag/karpenter.k8s.aws/ec2nodeclass": "*"
+        }
+      }
+    }
+  ]
+}

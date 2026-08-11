@@ -1,0 +1,11 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowAPIServerEndpointDiscovery",
+      "Effect": "Allow",
+      "Resource": "arn:aws:eks:ap-south-1:652197206148:cluster/kubeodin",
+      "Action": "eks:DescribeCluster"
+    }
+  ]
+}

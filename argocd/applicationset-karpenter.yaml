@@ -1,0 +1,113 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: karpenter
+  namespace: argocd
+
+spec:
+  goTemplate: true
+  goTemplateOptions:
+    - missingkey=error
+
+  generators:
+    - list:
+        elements:
+          - name: kubeodin
+            clusterName: kubeodin
+            server: https://kubernetes.default.svc
+            environment: production
+            tenant: customer-a
+
+  template:
+    metadata:
+      name: 'karpenter-{{ .name }}'
+
+    spec:
+      project: komtrol
+
+      destination:
+        server: '{{ .server }}'
+        namespace: karpenter
+
+      sources:
+
+        # ==================================================
+        # 1. Karpenter CRDs
+        # ==================================================
+        - repoURL: public.ecr.aws/karpenter
+          chart: karpenter-crd
+          targetRevision: 1.10.2
+
+          helm:
+            releaseName: karpenter-crd
+
+            values: |
+              webhook:
+                enabled: true
+                serviceName: karpenter
+                port: 8443
+
+        # ==================================================
+        # 2. Karpenter Controller
+        # ==================================================
+        - repoURL: public.ecr.aws/karpenter
+          chart: karpenter
+          targetRevision: 1.10.2
+
+          helm:
+            releaseName: karpenter
+
+            values: |
+              settings:
+                clusterName: '{{ .clusterName }}'
+
+              serviceAccount:
+                create: true
+                name: karpenter
+
+              controller:
+                resources:
+                  requests:
+                    cpu: 1
+                    memory: 1Gi
+                  limits:
+                    cpu: 1
+                    memory: 1Gi
+
+              # CRDs are managed by karpenter-crd
+              skipCrds: true
+
+        # ==================================================
+        # 3. Existing platform chart
+        # ==================================================
+        - repoURL: https://github.com/abhish3k07/gitops-lab.git
+          targetRevision: testing-branch
+          path: charts/komtrol-platform
+
+          helm:
+            releaseName: komtrol-platform
+
+            valueFiles:
+              - $values/values/{{ .environment }}/{{ .tenant }}/komtrol-platform.yaml
+
+        # ==================================================
+        # Values repository
+        # ==================================================
+        - repoURL: https://github.com/abhish3k07/gitops-lab.git
+          targetRevision: testing-branch
+          ref: values
+
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+
+        retry:
+          limit: 5
+
+          backoff:
+            duration: 30s
+            factor: 2
+
+      syncOptions:
+        - CreateNamespace=true

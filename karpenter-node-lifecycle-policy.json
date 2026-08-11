@@ -1,0 +1,134 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowScopedEC2InstanceAccessActions",
+      "Effect": "Allow",
+      "Resource": [
+        "arn:aws:ec2:ap-south-1::image/*",
+        "arn:aws:ec2:ap-south-1::snapshot/*",
+        "arn:aws:ec2:ap-south-1:*:security-group/*",
+        "arn:aws:ec2:ap-south-1:*:subnet/*",
+        "arn:aws:ec2:ap-south-1:*:capacity-reservation/*"
+      ],
+      "Action": [
+        "ec2:RunInstances",
+        "ec2:CreateFleet"
+      ]
+    },
+    {
+      "Sid": "AllowScopedEC2LaunchTemplateAccessActions",
+      "Effect": "Allow",
+      "Resource": "arn:aws:ec2:ap-south-1:*:launch-template/*",
+      "Action": [
+        "ec2:RunInstances",
+        "ec2:CreateFleet"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "aws:ResourceTag/kubernetes.io/cluster/kubeodin": "owned"
+        },
+        "StringLike": {
+          "aws:ResourceTag/karpenter.sh/nodepool": "*"
+        }
+      }
+    },
+    {
+      "Sid": "AllowScopedEC2InstanceActionsWithTags",
+      "Effect": "Allow",
+      "Resource": [
+        "arn:aws:ec2:ap-south-1:*:fleet/*",
+        "arn:aws:ec2:ap-south-1:*:instance/*",
+        "arn:aws:ec2:ap-south-1:*:volume/*",
+        "arn:aws:ec2:ap-south-1:*:network-interface/*",
+        "arn:aws:ec2:ap-south-1:*:launch-template/*",
+        "arn:aws:ec2:ap-south-1:*:spot-instances-request/*"
+      ],
+      "Action": [
+        "ec2:RunInstances",
+        "ec2:CreateFleet",
+        "ec2:CreateLaunchTemplate"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestTag/kubernetes.io/cluster/kubeodin": "owned",
+          "aws:RequestTag/eks:eks-cluster-name": "kubeodin"
+        },
+        "StringLike": {
+          "aws:RequestTag/karpenter.sh/nodepool": "*"
+        }
+      }
+    },
+    {
+      "Sid": "AllowScopedResourceCreationTagging",
+      "Effect": "Allow",
+      "Resource": [
+        "arn:aws:ec2:ap-south-1:*:fleet/*",
+        "arn:aws:ec2:ap-south-1:*:instance/*",
+        "arn:aws:ec2:ap-south-1:*:volume/*",
+        "arn:aws:ec2:ap-south-1:*:network-interface/*",
+        "arn:aws:ec2:ap-south-1:*:launch-template/*",
+        "arn:aws:ec2:ap-south-1:*:spot-instances-request/*"
+      ],
+      "Action": "ec2:CreateTags",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestTag/kubernetes.io/cluster/kubeodin": "owned",
+          "aws:RequestTag/eks:eks-cluster-name": "kubeodin",
+          "ec2:CreateAction": [
+            "RunInstances",
+            "CreateFleet",
+            "CreateLaunchTemplate"
+          ]
+        },
+        "StringLike": {
+          "aws:RequestTag/karpenter.sh/nodepool": "*"
+        }
+      }
+    },
+    {
+      "Sid": "AllowScopedResourceTagging",
+      "Effect": "Allow",
+      "Resource": "arn:aws:ec2:ap-south-1:*:instance/*",
+      "Action": "ec2:CreateTags",
+      "Condition": {
+        "StringEquals": {
+          "aws:ResourceTag/kubernetes.io/cluster/kubeodin": "owned"
+        },
+        "StringLike": {
+          "aws:ResourceTag/karpenter.sh/nodepool": "*"
+        },
+        "StringEqualsIfExists": {
+          "aws:RequestTag/eks:eks-cluster-name": "kubeodin"
+        },
+        "ForAllValues:StringEquals": {
+          "aws:TagKeys": [
+            "eks:eks-cluster-name",
+            "karpenter.sh/nodeclaim",
+            "Name"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "AllowScopedDeletion",
+      "Effect": "Allow",
+      "Resource": [
+        "arn:aws:ec2:ap-south-1:*:instance/*",
+        "arn:aws:ec2:ap-south-1:*:launch-template/*"
+      ],
+      "Action": [
+        "ec2:TerminateInstances",
+        "ec2:DeleteLaunchTemplate"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "aws:ResourceTag/kubernetes.io/cluster/kubeodin": "owned"
+        },
+        "StringLike": {
+          "aws:ResourceTag/karpenter.sh/nodepool": "*"
+        }
+      }
+    }
+  ]
+}
