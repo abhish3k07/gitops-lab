@@ -26,7 +26,7 @@ replsets:
 
 backup:
   enabled: true
-  image: percona/percona-backup-mongodb:<pinned tag>
+  image: percona/percona-backup-mongodb:1.23.0
   storages:
     s3-data-plane:
       s3:
