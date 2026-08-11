@@ -1,0 +1,66 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: komtrol
+  namespace: argocd
+spec:
+  description: Komtrol manual-wave applications
+
+  sourceRepos:
+    - https://github.com/abhish3k07/gitops-lab.git
+
+        # Percona Helm repository
+    - https://percona.github.io/percona-helm-charts
+
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: komtrol
+          # Customer data plane
+    - server: https://kubernetes.default.svc
+      namespace: data
+
+  # No cluster-scoped resources by default.
+  # Add CRDs/ClusterRoles/etc. here only if the Helm charts require them.
+  clusterResourceWhitelist: []
+
+  namespaceResourceWhitelist:
+    # Core resources
+    - group: ""
+      kind: ConfigMap
+    - group: ""
+      kind: Secret
+    - group: ""
+      kind: Service
+    - group: ""
+      kind: ServiceAccount
+    - group: ""
+      kind: PersistentVolumeClaim
+
+    # Workloads
+    - group: apps
+      kind: Deployment
+    - group: apps
+      kind: StatefulSet
+    - group: apps
+      kind: DaemonSet
+
+    # Jobs
+    - group: batch
+      kind: Job
+    - group: batch
+      kind: CronJob
+
+    # Scaling
+    - group: autoscaling
+      kind: HorizontalPodAutoscaler
+
+    # Availability
+    - group: policy
+      kind: PodDisruptionBudget
+          # Percona MongoDB custom resources
+    - group: psmdb.percona.com
+      kind: PerconaServerMongoDB
+    - group: psmdb.percona.com
+      kind: PerconaServerMongoDBBackup
+    - group: psmdb.percona.com
+      kind: PerconaServerMongoDBRestore

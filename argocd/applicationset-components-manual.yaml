@@ -25,8 +25,8 @@ spec:
                   environment: production
                   wave: manual
           - git:
-              repoURL: https://github.com/lexplosion/komtrol-config.git
-              revision: main
+              repoURL: https://github.com/abhish3k07/gitops-lab.git
+              revision: testing-branch
               files:
                 - path: 'components/{{ .metadata.labels.environment }}/{{ .metadata.labels.tenant }}/*.yaml'
   template:
@@ -48,8 +48,8 @@ spec:
             valueFiles:
               - $values/components/common/{{ .path.filename }}
               - $values/components/{{ .metadata.labels.environment }}/{{ .metadata.labels.tenant }}/{{ .path.filename }}
-        - repoURL: https://github.com/lexplosion/komtrol-config.git
-          targetRevision: main
+        - repoURL: https://github.com/abhish3k07/gitops-lab.git
+          targetRevision: testing-branch
           ref: values
       destination:
         server: '{{ .server }}'
