@@ -51,7 +51,7 @@ replsets:
         storageClassName: gp3-encrypted
 
 backup:
-  enabled: true
+  enabled: false
   storages:
     s3-data-plane:
       type: s3
