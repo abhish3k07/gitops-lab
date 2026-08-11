@@ -7,10 +7,10 @@
 chart:
   repoURL: https://percona.github.io/percona-helm-charts
   name: psmdb-db
-  version: "1.23.0 "
+  version: "1.23.0"
   namespace: data
 
-crVersion: "1.23.0 "
+crVersion: "1.23.0"
 image: percona/percona-server-mongodb:1.23.0 
 
 replsets:
