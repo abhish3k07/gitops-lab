@@ -11,6 +11,7 @@ spec:
 
         # Percona Helm repository
     - https://percona.github.io/percona-helm-charts
+    - public.ecr.aws/karpenter
 
   destinations:
     - server: https://kubernetes.default.svc
@@ -19,6 +20,8 @@ spec:
     - server: https://kubernetes.default.svc
       namespace: data
 
+    - namespace: karpenter
+      server: https://kubernetes.default.svc
   # No cluster-scoped resources by default.
   # Add CRDs/ClusterRoles/etc. here only if the Helm charts require them.
   clusterResourceWhitelist: 
@@ -30,6 +33,15 @@ spec:
 
     - group: rbac.authorization.k8s.io
       kind: ClusterRoleBinding
+      
+    - group: karpenter.k8s.aws
+      kind: EC2NodeClass
+
+    - group: karpenter.sh
+      kind: NodePool
+
+    - group: karpenter.sh
+      kind: NodeClaim
 
   namespaceResourceWhitelist:
     # Core resources
