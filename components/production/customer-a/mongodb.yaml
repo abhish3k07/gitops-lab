@@ -7,11 +7,11 @@
 chart:
   repoURL: https://percona.github.io/percona-helm-charts
   name: psmdb-db
-  version: "<pinned, see runbook 11.4>"
+  version: "1.23.0 "
   namespace: data
 
-crVersion: "<match the operator version>"
-image: percona/percona-server-mongodb:<pinned tag>
+crVersion: "1.23.0 "
+image: percona/percona-server-mongodb:1.23.0 
 
 replsets:
   rs0:
