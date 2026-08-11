@@ -31,21 +31,21 @@ replsets:
 
 backup:
   enabled: false
-  image: 
-    repository: percona/percona-backup-mongodb
-    tag: "2.15.0"
-  storages:
-    s3-data-plane:
-      s3:
-        bucket: komtrol-customer-a-mongo-backup
-  pitr:
-    enabled: true
-  tasks:
-    - name: daily
-      schedule: "0 18 * * *"
-      storageName: s3-data-plane
-      keep: 30
-      retention:
-        count: 30
-        type: count
-        deleteFromStorage: true
+  # image: 
+  #   repository: percona/percona-backup-mongodb
+  #   tag: "2.15.0"
+  # storages:
+  #   s3-data-plane:
+  #     s3:
+  #       bucket: komtrol-customer-a-mongo-backup
+  # pitr:
+  #   enabled: true
+  # tasks:
+  #   - name: daily
+  #     schedule: "0 18 * * *"
+  #     storageName: s3-data-plane
+  #     keep: 30
+  #     retention:
+  #       count: 30
+  #       type: count
+  #       deleteFromStorage: true
