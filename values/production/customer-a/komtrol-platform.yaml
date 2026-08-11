@@ -6,6 +6,8 @@ chart:
 clusterName: kubeodin
 
 nodeClass:
+  amiFamily: Bottlerocket
+  amiSelectorAlias: bottlerocket@1.64.0
   role: KarpenterNodeRole-kubeodin
   dataVolumeGiB: 10
 
