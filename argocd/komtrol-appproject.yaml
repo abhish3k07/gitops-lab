@@ -22,6 +22,9 @@ spec:
 
     - namespace: karpenter
       server: https://kubernetes.default.svc
+
+    - server: https://kubernetes.default.svc
+      namespace: kube-system
   # No cluster-scoped resources by default.
   # Add CRDs/ClusterRoles/etc. here only if the Helm charts require them.
   clusterResourceWhitelist: 
@@ -33,7 +36,7 @@ spec:
 
     - group: rbac.authorization.k8s.io
       kind: ClusterRoleBinding
-      
+
     - group: karpenter.k8s.aws
       kind: EC2NodeClass
 
@@ -42,6 +45,12 @@ spec:
 
     - group: karpenter.sh
       kind: NodeClaim
+
+    - group: scheduling.k8s.io
+      kind: PriorityClass
+
+    - group: ""
+      kind: Namespace
 
   namespaceResourceWhitelist:
     # Core resources
@@ -55,6 +64,15 @@ spec:
       kind: ServiceAccount
     - group: ""
       kind: PersistentVolumeClaim
+
+    # Karpenter
+    - group: rbac.authorization.k8s.io
+      kind: Role
+
+    - group: rbac.authorization.k8s.io
+      kind: RoleBinding
+
+
 
     # Workloads
     - group: apps
