@@ -11,7 +11,9 @@ chart:
   namespace: data
 
 crVersion: "1.23.0"
-image: percona/percona-server-mongodb:1.23.0 
+image:
+  repository: percona/percona-server-mongodb
+  tag: "1.23.0"
 
 replsets:
   rs0:
@@ -26,7 +28,9 @@ replsets:
 
 backup:
   enabled: true
-  image: percona/percona-backup-mongodb:1.23.0
+  image: 
+    repository: percona/percona-backup-mongodb
+    tag: "1.23.0
   storages:
     s3-data-plane:
       s3:

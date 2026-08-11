@@ -21,7 +21,15 @@ spec:
 
   # No cluster-scoped resources by default.
   # Add CRDs/ClusterRoles/etc. here only if the Helm charts require them.
-  clusterResourceWhitelist: []
+  clusterResourceWhitelist: 
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRole
+
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRoleBinding
 
   namespaceResourceWhitelist:
     # Core resources

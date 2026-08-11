@@ -58,5 +58,6 @@ spec:
         syncOptions:
           - CreateNamespace=false
           - SkipDryRunOnMissingResource=true
+          - ServerSideApply=true
         # No automated block, so no selfHeal either. Run argocd app diff before
         # every hand sync, and take a backup before syncing a datastore.
