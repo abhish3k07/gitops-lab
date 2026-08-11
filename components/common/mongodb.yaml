@@ -27,6 +27,7 @@ secrets:
 # tenant file instead.
 replsets:
   rs0:
+    serviceAccountName: mongodb-backup
     # Spread members across availability zones. A replica set whose members
     # share a zone survives a pod failure and not a zone failure, which is the
     # failure that actually happens.
@@ -52,20 +53,20 @@ replsets:
 
 backup:
   enabled: false
-  # storages:
-  #   s3-data-plane:
-  #     type: s3
-  #     s3:
-  #       region: ap-south-1
-  #       # Empty on purpose. The backup agent uses a Pod Identity association
-  #       # instead. Static AWS keys in a Kubernetes secret are exactly the
-  #       # finding a customer security review looks for, and the bucket is in
-  #       # the customer's own account anyway.
-  #       credentialsSecret: ""
-  # pitr:
-  #   enabled: true
-  # tasks:
-  #   - name: daily
-  #     schedule: "0 18 * * *"      # 23:30 IST, outside working hours
-  #     storageName: s3-data-plane
-  #     keep: 30
+  storages:
+    s3-data-plane:
+      type: s3
+      s3:
+        region: ap-south-1
+        # Empty on purpose. The backup agent uses a Pod Identity association
+        # instead. Static AWS keys in a Kubernetes secret are exactly the
+        # finding a customer security review looks for, and the bucket is in
+        # the customer's own account anyway.
+        credentialsSecret: ""
+  pitr:
+    enabled: true
+  tasks:
+    - name: daily
+      schedule: "0 18 * * *"      # 23:30 IST, outside working hours
+      storageName: s3-data-plane
+      keep: 30
