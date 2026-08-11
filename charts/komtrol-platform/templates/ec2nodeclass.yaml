@@ -5,7 +5,7 @@ metadata:
   annotations:
     # Ahead of everything. A NodePool referencing a NodeClass that does not
     # exist yet is accepted and then quietly launches nothing.
-    argocd.argoproj.io/sync-wave: "-1"
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   amiFamily: {{ .Values.nodeClass.amiFamily }}
   amiSelectorTerms:
