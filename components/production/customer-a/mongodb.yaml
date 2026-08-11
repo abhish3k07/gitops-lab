@@ -13,24 +13,25 @@ chart:
 crVersion: "1.23.0"
 image:
   repository: percona/percona-server-mongodb
-  tag: "1.23.0"
+  tag: "8.0.26-11"
 
 replsets:
   rs0:
     size: 3
     resources:
-      requests: { cpu: 1, memory: 4Gi }
-      limits:   { memory: 8Gi }
+      requests: { cpu: 1, memory: 1Gi }
+      limits:   { memory: 2Gi }
     volumeSpec:
-      persistentVolumeClaim:
+      pvc:
         resources:
-          requests: { storage: 100Gi }
+          requests: 
+             storage: 10Gi 
 
 backup:
   enabled: true
   image: 
     repository: percona/percona-backup-mongodb
-    tag: "1.23.0
+    tag: "2.15.0"
   storages:
     s3-data-plane:
       s3:
