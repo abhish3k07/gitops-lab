@@ -3,15 +3,15 @@
 chart:
   name: komtrol-platform
 
-clusterName: komtrol-customer-a
+clusterName: kubeodin
 
 nodeClass:
-  role: KarpenterNodeRole-komtrol-customer-a
-  dataVolumeGiB: 100
+  role: KarpenterNodeRole-kubeodin
+  dataVolumeGiB: 10
 
 default:
-  cpuLimit: "100"
+  cpuLimit: "10"
 
 critical:
   enabled: true
-  cpuLimit: "64"
+  cpuLimit: "10"
