@@ -41,12 +41,6 @@ spec:
           helm:
             releaseName: karpenter-crd
 
-            values: |
-              webhook:
-                enabled: true
-                serviceName: karpenter
-                port: 8443
-
         # ==================================================
         # 2. Karpenter Controller
         # ==================================================
@@ -74,9 +68,6 @@ spec:
                     cpu: 1
                     memory: 1Gi
 
-              # CRDs are managed by karpenter-crd
-              skipCrds: true
-
         # ==================================================
         # 3. Existing platform chart
         # ==================================================
@@ -91,7 +82,7 @@ spec:
               - $values/values/{{ .environment }}/{{ .tenant }}/komtrol-platform.yaml
 
         # ==================================================
-        # Values repository
+        # 4. Values source
         # ==================================================
         - repoURL: https://github.com/abhish3k07/gitops-lab.git
           targetRevision: testing-branch
@@ -104,10 +95,9 @@ spec:
 
         retry:
           limit: 5
-
           backoff:
             duration: 30s
             factor: 2
 
-      syncOptions:
-        - CreateNamespace=true
+        syncOptions:
+          - CreateNamespace=true
