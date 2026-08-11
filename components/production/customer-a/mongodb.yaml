@@ -30,7 +30,7 @@ replsets:
              storage: 10Gi 
 
 backup:
-  enabled: true
+  enabled: false
   image: 
     repository: percona/percona-backup-mongodb
     tag: "2.15.0"
