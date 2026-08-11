@@ -3,7 +3,7 @@ kind: NodePool
 metadata:
   name: default
   annotations:
-    argocd.argoproj.io/sync-wave: "0"
+    argocd.argoproj.io/sync-wave: "2"
 spec:
   template:
     spec:
@@ -52,7 +52,7 @@ kind: NodePool
 metadata:
   name: critical
   annotations:
-    argocd.argoproj.io/sync-wave: "0"
+    argocd.argoproj.io/sync-wave: "2"
 spec:
   template:
     spec:
